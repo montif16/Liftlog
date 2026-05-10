@@ -19,3 +19,19 @@ export async function getExercises(signal) {
 
   return response.json()
 }
+
+export async function createExercise(exercise) {
+  const response = await fetch(`${API_BASE_URL}/api/exercises`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(exercise),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Create exercise request failed: ${response.status}`)
+  }
+
+  return response.json()
+}
