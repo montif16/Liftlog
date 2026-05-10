@@ -12,7 +12,7 @@ spring:
       initialization-fail-timeout: 0
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: ${LIFTLOG_DDL_AUTO:update}
     open-in-view: false
     properties:
       hibernate:
