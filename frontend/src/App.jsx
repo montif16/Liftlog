@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router'
 import AppLayout from './layouts/AppLayout'
+import ExercisesPage from './pages/ExercisesPage'
 import HistoryPage from './pages/HistoryPage'
 import HomePage from './pages/HomePage'
 import ProgressPage from './pages/ProgressPage'
@@ -11,6 +12,7 @@ function App() {
     <Routes>
       <Route element={<AppLayout />}>
         <Route index element={<HomePage />} />
+        <Route path="/exercises" element={<ExercisesPage />} />
         <Route path="/workouts" element={<WorkoutsPage />} />
         <Route path="/session" element={<SessionPage />} />
         <Route path="/history" element={<HistoryPage />} />
