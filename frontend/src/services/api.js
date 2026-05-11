@@ -20,6 +20,16 @@ export async function getExercises(signal) {
   return response.json()
 }
 
+export async function getWorkoutTemplates(signal) {
+  const response = await fetch(`${API_BASE_URL}/api/templates`, { signal })
+
+  if (!response.ok) {
+    throw new Error(`Workout templates request failed: ${response.status}`)
+  }
+
+  return response.json()
+}
+
 export async function createExercise(exercise) {
   const response = await fetch(`${API_BASE_URL}/api/exercises`, {
     method: 'POST',
