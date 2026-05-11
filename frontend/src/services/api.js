@@ -35,3 +35,13 @@ export async function createExercise(exercise) {
 
   return response.json()
 }
+
+export async function deleteExercise(id) {
+  const response = await fetch(`${API_BASE_URL}/api/exercises/${id}`, {
+    method: 'DELETE',
+  })
+
+  if (!response.ok) {
+    throw new Error(`Delete exercise request failed: ${response.status}`)
+  }
+}

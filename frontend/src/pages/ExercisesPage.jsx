@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { createExercise, getExercises } from '../services/api'
+import { createExercise, deleteExercise, getExercises } from '../services/api'
 
 const emptyForm = {
   exerciseName: '',
@@ -28,6 +28,8 @@ function ExercisesPage() {
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState(null)
+  const [deletingId, setDeletingId] = useState(null)
+  const [deleteError, setDeleteError] = useState(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -75,6 +77,29 @@ function ExercisesPage() {
       setFormError(error.message)
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleDelete(exercise) {
+    const confirmed = window.confirm(`Slet øvelsen "${exercise.name}"?`)
+
+    if (!confirmed) {
+      return
+    }
+
+    setDeleteError(null)
+    setDeletingId(exercise.id)
+
+    try {
+      await deleteExercise(exercise.id)
+      setState((current) => ({
+        ...current,
+        exercises: current.exercises.filter((item) => item.id !== exercise.id),
+      }))
+    } catch (error) {
+      setDeleteError(error.message)
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -159,6 +184,8 @@ function ExercisesPage() {
 
             {state.loading && <p className="mb-0">Henter øvelser...</p>}
 
+            {deleteError && <p className="text-danger mb-3">{deleteError}</p>}
+
             {state.error && (
               <>
                 <p className="status-pill error mb-2">Offline</p>
@@ -178,6 +205,7 @@ function ExercisesPage() {
                       <th>Navn</th>
                       <th>Muskelgruppe</th>
                       <th>Noter</th>
+                      <th className="text-end">Handlinger</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -186,6 +214,16 @@ function ExercisesPage() {
                         <td>{exercise.name}</td>
                         <td>{exercise.muscleGroup}</td>
                         <td>{exercise.notes ?? '-'}</td>
+                        <td className="text-end">
+                          <button
+                            className="btn btn-sm btn-outline-danger"
+                            disabled={deletingId === exercise.id}
+                            onClick={() => handleDelete(exercise)}
+                            type="button"
+                          >
+                            {deletingId === exercise.id ? 'Sletter...' : 'Slet'}
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
