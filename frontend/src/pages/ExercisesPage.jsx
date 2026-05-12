@@ -30,6 +30,7 @@ function ExercisesPage() {
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState(null)
   const [deleteError, setDeleteError] = useState(null)
 
   useEffect(() => {
@@ -82,12 +83,6 @@ function ExercisesPage() {
   }
 
   async function handleDelete(exercise) {
-    const confirmed = window.confirm(`Slet øvelsen "${exercise.name}"?`)
-
-    if (!confirmed) {
-      return
-    }
-
     setDeleteError(null)
     setDeletingId(exercise.id)
 
@@ -97,6 +92,7 @@ function ExercisesPage() {
         ...current,
         exercises: current.exercises.filter((item) => item.id !== exercise.id),
       }))
+      setConfirmingDeleteId(null)
     } catch (error) {
       setDeleteError(error.message)
     } finally {
@@ -216,14 +212,34 @@ function ExercisesPage() {
                         <td>{exercise.muscleGroup}</td>
                         <td>{exercise.notes ?? '-'}</td>
                         <td className="text-end">
-                          <button
-                            className="btn btn-sm btn-outline-danger"
-                            disabled={deletingId === exercise.id}
-                            onClick={() => handleDelete(exercise)}
-                            type="button"
-                          >
-                            {deletingId === exercise.id ? 'Sletter...' : 'Slet'}
-                          </button>
+                          {confirmingDeleteId === exercise.id ? (
+                            <div className="d-flex justify-content-end gap-2">
+                              <button
+                                className="btn btn-sm btn-danger"
+                                disabled={deletingId === exercise.id}
+                                onClick={() => handleDelete(exercise)}
+                                type="button"
+                              >
+                                {deletingId === exercise.id ? 'Sletter...' : 'Bekræft'}
+                              </button>
+                              <button
+                                className="btn btn-sm btn-outline-secondary"
+                                disabled={deletingId === exercise.id}
+                                onClick={() => setConfirmingDeleteId(null)}
+                                type="button"
+                              >
+                                Annuller
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              className="btn btn-sm btn-outline-danger"
+                              onClick={() => setConfirmingDeleteId(exercise.id)}
+                              type="button"
+                            >
+                              Slet
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
