@@ -14,6 +14,7 @@ function WorkoutsPage() {
     error: null,
   })
   const [form, setForm] = useState(emptyForm)
+  const [selectedExercises, setSelectedExercises] = useState([])
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState(null)
 
@@ -43,6 +44,18 @@ function WorkoutsPage() {
     setForm((current) => ({ ...current, [name]: value }))
   }
 
+  function handleToggleExercise(exercise) {
+    setSelectedExercises((current) => {
+      const isAlreadySelected = current.some((item) => item.id === exercise.id)
+
+      if (isAlreadySelected) {
+        return current.filter((item) => item.id !== exercise.id)
+      }
+
+      return [...current, exercise]
+    })
+  }
+
   async function handleSubmit(event) {
     event.preventDefault()
     setFormError(null)
@@ -62,6 +75,7 @@ function WorkoutsPage() {
         ),
       }))
       setForm(emptyForm)
+      setSelectedExercises([])
     } catch (error) {
       setFormError(error.message)
     } finally {
@@ -76,7 +90,7 @@ function WorkoutsPage() {
           <div className="card-body">
             <h2 className="h4 mb-2">Opret workout</h2>
             <p className="text-secondary mb-3">
-              Opret en tom workout template. Øvelser tilføjes i næste iteration.
+              Vælg øvelser til workouten. Sets og reps tilføjes i næste iteration.
             </p>
 
             <form autoComplete="off" className="d-grid gap-3" onSubmit={handleSubmit}>
@@ -112,32 +126,41 @@ function WorkoutsPage() {
                 />
               </div>
 
+              <div>
+                <h3 className="h6 text-uppercase text-secondary mb-3">Tilgængelige øvelser</h3>
+
+                {state.loading && <p className="mb-0">Henter øvelser...</p>}
+
+                {!state.loading && !state.error && state.exercises.length === 0 && (
+                  <p className="mb-0 text-secondary">Opret øvelser før de kan tilføjes til workouts.</p>
+                )}
+
+                {!state.loading && !state.error && state.exercises.length > 0 && (
+                  <div className="d-flex flex-wrap gap-2">
+                    {state.exercises.map((exercise) => {
+                      const isSelected = selectedExercises.some((item) => item.id === exercise.id)
+
+                      return (
+                        <button
+                          className={`btn btn-sm ${isSelected ? 'btn-dark' : 'btn-outline-secondary'}`}
+                          key={exercise.id}
+                          onClick={() => handleToggleExercise(exercise)}
+                          type="button"
+                        >
+                          {exercise.name}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
               {formError && <p className="text-danger mb-0">{formError}</p>}
 
               <button className="btn btn-dark" disabled={saving} type="submit">
                 {saving ? 'Gemmer...' : 'Gem workout'}
               </button>
             </form>
-
-            <hr />
-
-            <h3 className="h6 text-uppercase text-secondary mb-3">Tilgængelige øvelser</h3>
-
-            {state.loading && <p className="mb-0">Henter øvelser...</p>}
-
-            {!state.loading && !state.error && state.exercises.length === 0 && (
-              <p className="mb-0 text-secondary">Opret øvelser før de kan tilføjes til workouts.</p>
-            )}
-
-            {!state.loading && !state.error && state.exercises.length > 0 && (
-              <div className="d-flex flex-wrap gap-2">
-                {state.exercises.map((exercise) => (
-                  <span className="badge text-bg-light border" key={exercise.id}>
-                    {exercise.name}
-                  </span>
-                ))}
-              </div>
-            )}
           </div>
         </div>
       </div>

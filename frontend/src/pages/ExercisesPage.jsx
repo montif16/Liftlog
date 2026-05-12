@@ -10,6 +10,7 @@ const emptyForm = {
 const muscleGroups = [
   'Chest',
   'Back',
+  'Lats',
   'Shoulders',
   'Biceps',
   'Triceps',
