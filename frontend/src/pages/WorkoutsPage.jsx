@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { createWorkoutTemplate, getWorkoutTemplates } from '../services/api'
+import { createWorkoutTemplate, getExercises, getWorkoutTemplates } from '../services/api'
 
 const emptyForm = {
   name: '',
@@ -10,6 +10,7 @@ function WorkoutsPage() {
   const [state, setState] = useState({
     loading: true,
     templates: [],
+    exercises: [],
     error: null,
   })
   const [form, setForm] = useState(emptyForm)
@@ -19,18 +20,21 @@ function WorkoutsPage() {
   useEffect(() => {
     const controller = new AbortController()
 
-    async function loadWorkoutTemplates() {
+    async function loadWorkoutData() {
       try {
-        const templates = await getWorkoutTemplates(controller.signal)
-        setState({ loading: false, templates, error: null })
+        const [templates, exercises] = await Promise.all([
+          getWorkoutTemplates(controller.signal),
+          getExercises(controller.signal),
+        ])
+        setState({ loading: false, templates, exercises, error: null })
       } catch (error) {
         if (error.name !== 'AbortError') {
-          setState({ loading: false, templates: [], error: error.message })
+          setState({ loading: false, templates: [], exercises: [], error: error.message })
         }
       }
     }
 
-    loadWorkoutTemplates()
+    loadWorkoutData()
     return () => controller.abort()
   }, [])
 
@@ -114,6 +118,26 @@ function WorkoutsPage() {
                 {saving ? 'Gemmer...' : 'Gem workout'}
               </button>
             </form>
+
+            <hr />
+
+            <h3 className="h6 text-uppercase text-secondary mb-3">Tilgængelige øvelser</h3>
+
+            {state.loading && <p className="mb-0">Henter øvelser...</p>}
+
+            {!state.loading && !state.error && state.exercises.length === 0 && (
+              <p className="mb-0 text-secondary">Opret øvelser før de kan tilføjes til workouts.</p>
+            )}
+
+            {!state.loading && !state.error && state.exercises.length > 0 && (
+              <div className="d-flex flex-wrap gap-2">
+                {state.exercises.map((exercise) => (
+                  <span className="badge text-bg-light border" key={exercise.id}>
+                    {exercise.name}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
