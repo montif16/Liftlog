@@ -35,3 +35,28 @@ body {
 .status-pill.error::before {
   background-color: #dc3545;
 }
+
+.editable-cell {
+  width: 100%;
+  min-height: 1.9375rem;
+  padding: 0.25rem 0;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  border: 0;
+}
+
+.editable-cell:hover,
+.editable-cell:focus {
+  color: #0d6efd;
+  text-decoration: underline;
+}
+
+.exercise-delete-button {
+  opacity: 0;
+}
+
+.exercise-row:hover .exercise-delete-button,
+.exercise-delete-button:focus {
+  opacity: 1;
+}
