@@ -30,6 +30,22 @@ export async function getWorkoutTemplates(signal) {
   return response.json()
 }
 
+export async function createWorkoutTemplate(template) {
+  const response = await fetch(`${API_BASE_URL}/api/templates`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(template),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Create workout template request failed: ${response.status}`)
+  }
+
+  return response.json()
+}
+
 export async function createExercise(exercise) {
   const response = await fetch(`${API_BASE_URL}/api/exercises`, {
     method: 'POST',
