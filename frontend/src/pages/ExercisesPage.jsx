@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Trash2 } from 'lucide-react'
 import { createExercise, deleteExercise, getExercises } from '../services/api'
 
 const emptyForm = {
@@ -233,11 +234,13 @@ function ExercisesPage() {
                             </div>
                           ) : (
                             <button
+                              aria-label={`Slet øvelsen ${exercise.name}`}
                               className="btn btn-sm btn-outline-danger"
                               onClick={() => setConfirmingDeleteId(exercise.id)}
+                              title="Slet øvelse"
                               type="button"
                             >
-                              Slet
+                              <Trash2 aria-hidden="true" size={16} />
                             </button>
                           )}
                         </td>
