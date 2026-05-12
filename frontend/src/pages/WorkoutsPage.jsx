@@ -73,7 +73,12 @@ function WorkoutsPage() {
       const createdTemplate = await createWorkoutTemplate({
         name: form.name,
         description: form.description || null,
-        items: [],
+        items: selectedExercises.map((exercise, index) => ({
+          exerciseId: exercise.id,
+          orderIndex: index + 1,
+          targetSets: exercise.targetSets,
+          targetReps: exercise.targetReps,
+        })),
       })
 
       setState((current) => ({
