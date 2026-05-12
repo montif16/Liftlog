@@ -1,5 +1,11 @@
 import { useEffect, useState } from 'react'
-import { createWorkoutTemplate, getExercises, getWorkoutTemplates } from '../services/api'
+import { Trash2 } from 'lucide-react'
+import {
+  createWorkoutTemplate,
+  deleteWorkoutTemplate,
+  getExercises,
+  getWorkoutTemplates,
+} from '../services/api'
 
 const emptyForm = {
   name: '',
@@ -17,6 +23,8 @@ function WorkoutsPage() {
   const [selectedExercises, setSelectedExercises] = useState([])
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState(null)
+  const [deletingId, setDeletingId] = useState(null)
+  const [deleteError, setDeleteError] = useState(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -93,6 +101,29 @@ function WorkoutsPage() {
       setFormError(error.message)
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleDelete(template) {
+    const confirmed = window.confirm(`Slet workouten "${template.name}"?`)
+
+    if (!confirmed) {
+      return
+    }
+
+    setDeleteError(null)
+    setDeletingId(template.id)
+
+    try {
+      await deleteWorkoutTemplate(template.id)
+      setState((current) => ({
+        ...current,
+        templates: current.templates.filter((item) => item.id !== template.id),
+      }))
+    } catch (error) {
+      setDeleteError(error.message)
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -249,6 +280,8 @@ function WorkoutsPage() {
               </>
             )}
 
+            {deleteError && <p className="text-danger mb-3">{deleteError}</p>}
+
             {!state.loading && !state.error && state.templates.length === 0 && (
               <p className="mb-0">Ingen workouts endnu.</p>
             )}
@@ -264,9 +297,21 @@ function WorkoutsPage() {
                           <p className="text-secondary mb-0">{template.description}</p>
                         )}
                       </div>
-                      <span className="text-secondary small">
-                        {template.items.length} øvelser
-                      </span>
+                      <div className="d-flex align-items-center gap-2">
+                        <span className="text-secondary small">
+                          {template.items.length} øvelser
+                        </span>
+                        <button
+                          aria-label={`Slet workouten ${template.name}`}
+                          className="btn btn-sm btn-outline-danger"
+                          disabled={deletingId === template.id}
+                          onClick={() => handleDelete(template)}
+                          title="Slet workout"
+                          type="button"
+                        >
+                          <Trash2 aria-hidden="true" size={16} />
+                        </button>
+                      </div>
                     </div>
 
                     {template.items.length > 0 && (

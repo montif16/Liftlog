@@ -46,6 +46,16 @@ export async function createWorkoutTemplate(template) {
   return response.json()
 }
 
+export async function deleteWorkoutTemplate(id) {
+  const response = await fetch(`${API_BASE_URL}/api/templates/${id}`, {
+    method: 'DELETE',
+  })
+
+  if (!response.ok) {
+    throw new Error(`Delete workout template request failed: ${response.status}`)
+  }
+}
+
 export async function createExercise(exercise) {
   const response = await fetch(`${API_BASE_URL}/api/exercises`, {
     method: 'POST',
