@@ -52,8 +52,16 @@ function WorkoutsPage() {
         return current.filter((item) => item.id !== exercise.id)
       }
 
-      return [...current, exercise]
+      return [...current, { ...exercise, targetSets: 3, targetReps: 10 }]
     })
+  }
+
+  function handleSelectedExerciseChange(exerciseId, field, value) {
+    setSelectedExercises((current) =>
+      current.map((exercise) =>
+        exercise.id === exerciseId ? { ...exercise, [field]: value } : exercise,
+      ),
+    )
   }
 
   async function handleSubmit(event) {
@@ -154,6 +162,59 @@ function WorkoutsPage() {
                   </div>
                 )}
               </div>
+
+              {selectedExercises.length > 0 && (
+                <div>
+                  <h3 className="h6 text-uppercase text-secondary mb-3">Sets og reps</h3>
+                  <div className="d-grid gap-2">
+                    {selectedExercises.map((exercise) => (
+                      <div className="border rounded px-3 py-2" key={exercise.id}>
+                        <div className="fw-semibold mb-2">{exercise.name}</div>
+                        <div className="row g-2">
+                          <div className="col-6">
+                            <label className="form-label" htmlFor={`sets-${exercise.id}`}>
+                              Sets
+                            </label>
+                            <input
+                              className="form-control"
+                              id={`sets-${exercise.id}`}
+                              min={1}
+                              onChange={(event) =>
+                                handleSelectedExerciseChange(
+                                  exercise.id,
+                                  'targetSets',
+                                  Number(event.target.value),
+                                )
+                              }
+                              type="number"
+                              value={exercise.targetSets}
+                            />
+                          </div>
+                          <div className="col-6">
+                            <label className="form-label" htmlFor={`reps-${exercise.id}`}>
+                              Reps
+                            </label>
+                            <input
+                              className="form-control"
+                              id={`reps-${exercise.id}`}
+                              min={1}
+                              onChange={(event) =>
+                                handleSelectedExerciseChange(
+                                  exercise.id,
+                                  'targetReps',
+                                  Number(event.target.value),
+                                )
+                              }
+                              type="number"
+                              value={exercise.targetReps}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {formError && <p className="text-danger mb-0">{formError}</p>}
 
