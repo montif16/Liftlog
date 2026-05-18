@@ -72,6 +72,22 @@ export async function createExercise(exercise) {
   return response.json()
 }
 
+export async function updateExercise(id, exercise) {
+  const response = await fetch(`${API_BASE_URL}/api/exercises/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(exercise),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Update exercise request failed: ${response.status}`)
+  }
+
+  return response.json()
+}
+
 export async function deleteExercise(id) {
   const response = await fetch(`${API_BASE_URL}/api/exercises/${id}`, {
     method: 'DELETE',

@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
-import { createExercise, deleteExercise, getExercises } from '../services/api'
+import { useEffect, useRef, useState } from 'react'
+import { Trash2 } from 'lucide-react'
+import { createExercise, deleteExercise, getExercises, updateExercise } from '../services/api'
 
 const emptyForm = {
   exerciseName: '',
@@ -21,15 +22,20 @@ const muscleGroups = [
 ]
 
 function ExercisesPage() {
+  const skipBlurSaveRef = useRef(false)
   const [state, setState] = useState({
     loading: true,
     exercises: [],
     error: null,
   })
   const [form, setForm] = useState(emptyForm)
+  const [editingCell, setEditingCell] = useState(null)
+  const [savingCellKey, setSavingCellKey] = useState(null)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState(null)
+  const [inlineEditError, setInlineEditError] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState(null)
   const [deleteError, setDeleteError] = useState(null)
 
   useEffect(() => {
@@ -81,13 +87,140 @@ function ExercisesPage() {
     }
   }
 
-  async function handleDelete(exercise) {
-    const confirmed = window.confirm(`Slet øvelsen "${exercise.name}"?`)
+  function startInlineEdit(exercise, field) {
+    setEditingCell({
+      exerciseId: exercise.id,
+      field,
+      value: exercise[field] ?? '',
+    })
+    setInlineEditError(null)
+    setConfirmingDeleteId(null)
+  }
 
-    if (!confirmed) {
+  function handleInlineEditChange(event) {
+    const { value } = event.target
+    setEditingCell((current) => ({ ...current, value }))
+  }
+
+  async function saveInlineEdit(exercise) {
+    if (!editingCell) {
       return
     }
 
+    const editedCell = editingCell
+    const trimmedValue = editedCell.value.trim()
+
+    if ((editedCell.field === 'name' || editedCell.field === 'muscleGroup') && !trimmedValue) {
+      setInlineEditError('Navn og muskelgruppe må ikke være tomme.')
+      return
+    }
+
+    const payload = {
+      name: exercise.name,
+      muscleGroup: exercise.muscleGroup,
+      notes: exercise.notes ?? null,
+      [editedCell.field]: editedCell.field === 'notes' ? trimmedValue || null : trimmedValue,
+    }
+
+    const cellKey = `${exercise.id}-${editedCell.field}`
+    setInlineEditError(null)
+    setSavingCellKey(cellKey)
+
+    try {
+      const updatedExercise = await updateExercise(exercise.id, payload)
+
+      setState((current) => ({
+        ...current,
+        exercises: current.exercises
+          .map((item) => (item.id === exercise.id ? updatedExercise : item))
+          .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })),
+      }))
+      setEditingCell((current) =>
+        current?.exerciseId === editedCell.exerciseId && current.field === editedCell.field
+          ? null
+          : current,
+      )
+    } catch (error) {
+      setInlineEditError(error.message)
+    } finally {
+      setSavingCellKey(null)
+    }
+  }
+
+  function handleInlineEditKeyDown(event) {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      event.currentTarget.blur()
+    }
+
+    if (event.key === 'Escape') {
+      skipBlurSaveRef.current = true
+      setEditingCell(null)
+      setInlineEditError(null)
+    }
+  }
+
+  function handleInlineEditBlur(exercise) {
+    if (skipBlurSaveRef.current) {
+      skipBlurSaveRef.current = false
+      return
+    }
+
+    saveInlineEdit(exercise)
+  }
+
+  function renderEditableCell(exercise, field) {
+    const isEditing = editingCell?.exerciseId === exercise.id && editingCell.field === field
+    const cellKey = `${exercise.id}-${field}`
+    const displayValue = exercise[field] || '-'
+
+    if (!isEditing) {
+      return (
+        <button
+          className="editable-cell"
+          onClick={() => startInlineEdit(exercise, field)}
+          type="button"
+        >
+          {displayValue}
+        </button>
+      )
+    }
+
+    if (field === 'muscleGroup') {
+      return (
+        <select
+          autoFocus
+          className="form-control form-control-sm"
+          disabled={savingCellKey === cellKey}
+          onBlur={() => handleInlineEditBlur(exercise)}
+          onChange={handleInlineEditChange}
+          onKeyDown={handleInlineEditKeyDown}
+          value={editingCell.value}
+        >
+          {muscleGroups.map((muscleGroup) => (
+            <option key={muscleGroup} value={muscleGroup}>
+              {muscleGroup}
+            </option>
+          ))}
+        </select>
+      )
+    }
+
+    return (
+      <input
+        autoFocus
+        className="form-control form-control-sm"
+        disabled={savingCellKey === cellKey}
+        maxLength={field === 'notes' ? 1000 : 120}
+        onBlur={() => handleInlineEditBlur(exercise)}
+        onChange={handleInlineEditChange}
+        onKeyDown={handleInlineEditKeyDown}
+        value={editingCell.value}
+      />
+    )
+  }
+
+  async function handleDelete(exercise) {
     setDeleteError(null)
     setDeletingId(exercise.id)
 
@@ -97,6 +230,10 @@ function ExercisesPage() {
         ...current,
         exercises: current.exercises.filter((item) => item.id !== exercise.id),
       }))
+      setConfirmingDeleteId(null)
+      if (editingCell?.exerciseId === exercise.id) {
+        setEditingCell(null)
+      }
     } catch (error) {
       setDeleteError(error.message)
     } finally {
@@ -185,6 +322,8 @@ function ExercisesPage() {
 
             {state.loading && <p className="mb-0">Henter øvelser...</p>}
 
+            {inlineEditError && <p className="text-danger mb-3">{inlineEditError}</p>}
+
             {deleteError && <p className="text-danger mb-3">{deleteError}</p>}
 
             {state.error && (
@@ -211,19 +350,44 @@ function ExercisesPage() {
                   </thead>
                   <tbody>
                     {state.exercises.map((exercise) => (
-                      <tr key={exercise.id}>
-                        <td>{exercise.name}</td>
-                        <td>{exercise.muscleGroup}</td>
-                        <td>{exercise.notes ?? '-'}</td>
+                      <tr className="exercise-row" key={exercise.id}>
+                        <td>{renderEditableCell(exercise, 'name')}</td>
+                        <td>{renderEditableCell(exercise, 'muscleGroup')}</td>
+                        <td>{renderEditableCell(exercise, 'notes')}</td>
                         <td className="text-end">
-                          <button
-                            className="btn btn-sm btn-outline-danger"
-                            disabled={deletingId === exercise.id}
-                            onClick={() => handleDelete(exercise)}
-                            type="button"
-                          >
-                            {deletingId === exercise.id ? 'Sletter...' : 'Slet'}
-                          </button>
+                          {confirmingDeleteId === exercise.id ? (
+                            <div className="d-flex justify-content-end gap-2">
+                              <button
+                                className="btn btn-sm btn-danger"
+                                disabled={deletingId === exercise.id}
+                                onClick={() => handleDelete(exercise)}
+                                type="button"
+                              >
+                                {deletingId === exercise.id ? 'Sletter...' : 'Bekræft'}
+                              </button>
+                              <button
+                                className="btn btn-sm btn-outline-secondary"
+                                disabled={deletingId === exercise.id}
+                                onClick={() => setConfirmingDeleteId(null)}
+                                type="button"
+                              >
+                                Annuller
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              aria-label={`Slet øvelsen ${exercise.name}`}
+                              className="btn btn-sm btn-outline-danger exercise-delete-button"
+                              onClick={() => {
+                                setConfirmingDeleteId(exercise.id)
+                                setEditingCell(null)
+                              }}
+                              title="Slet øvelse"
+                              type="button"
+                            >
+                              <Trash2 aria-hidden="true" size={16} />
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}

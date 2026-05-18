@@ -24,6 +24,7 @@ function WorkoutsPage() {
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState(null)
   const [deleteError, setDeleteError] = useState(null)
 
   useEffect(() => {
@@ -105,12 +106,6 @@ function WorkoutsPage() {
   }
 
   async function handleDelete(template) {
-    const confirmed = window.confirm(`Slet workouten "${template.name}"?`)
-
-    if (!confirmed) {
-      return
-    }
-
     setDeleteError(null)
     setDeletingId(template.id)
 
@@ -120,6 +115,7 @@ function WorkoutsPage() {
         ...current,
         templates: current.templates.filter((item) => item.id !== template.id),
       }))
+      setConfirmingDeleteId(null)
     } catch (error) {
       setDeleteError(error.message)
     } finally {
@@ -301,16 +297,36 @@ function WorkoutsPage() {
                         <span className="text-secondary small">
                           {template.items.length} øvelser
                         </span>
-                        <button
-                          aria-label={`Slet workouten ${template.name}`}
-                          className="btn btn-sm btn-outline-danger"
-                          disabled={deletingId === template.id}
-                          onClick={() => handleDelete(template)}
-                          title="Slet workout"
-                          type="button"
-                        >
-                          <Trash2 aria-hidden="true" size={16} />
-                        </button>
+                        {confirmingDeleteId === template.id ? (
+                          <>
+                            <button
+                              className="btn btn-sm btn-danger"
+                              disabled={deletingId === template.id}
+                              onClick={() => handleDelete(template)}
+                              type="button"
+                            >
+                              {deletingId === template.id ? 'Sletter...' : 'Bekræft'}
+                            </button>
+                            <button
+                              className="btn btn-sm btn-outline-secondary"
+                              disabled={deletingId === template.id}
+                              onClick={() => setConfirmingDeleteId(null)}
+                              type="button"
+                            >
+                              Annuller
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            aria-label={`Slet workouten ${template.name}`}
+                            className="btn btn-sm btn-outline-danger"
+                            onClick={() => setConfirmingDeleteId(template.id)}
+                            title="Slet workout"
+                            type="button"
+                          >
+                            <Trash2 aria-hidden="true" size={16} />
+                          </button>
+                        )}
                       </div>
                     </div>
 
