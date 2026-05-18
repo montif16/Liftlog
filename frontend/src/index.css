@@ -60,3 +60,30 @@ body {
 .exercise-delete-button:focus {
   opacity: 1;
 }
+
+.session-set-label {
+  width: 3.25rem;
+  flex: 0 0 auto;
+}
+
+.session-log-input {
+  width: 4.5rem;
+}
+
+.session-weight-field {
+  position: relative;
+}
+
+.session-weight-field .session-log-input {
+  padding-right: 1.7rem;
+}
+
+.session-input-suffix {
+  position: absolute;
+  top: 50%;
+  right: 0.5rem;
+  color: #6c757d;
+  font-size: 0.75rem;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
