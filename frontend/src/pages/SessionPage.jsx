@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getWorkoutTemplates } from '../services/api'
+import { getWorkoutTemplates, saveTrainingSession } from '../services/api'
 
 function SessionPage() {
   const [state, setState] = useState({
@@ -10,6 +10,9 @@ function SessionPage() {
   const [activeSession, setActiveSession] = useState(null)
   const [expandedExerciseIds, setExpandedExerciseIds] = useState([])
   const [noteExerciseIds, setNoteExerciseIds] = useState([])
+  const [savingSession, setSavingSession] = useState(false)
+  const [saveError, setSaveError] = useState(null)
+  const [savedSessionId, setSavedSessionId] = useState(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -55,6 +58,8 @@ function SessionPage() {
     })
     setExpandedExerciseIds([])
     setNoteExerciseIds([])
+    setSaveError(null)
+    setSavedSessionId(null)
   }
 
   function handleSetChange(templateItemId, setNumber, field, value) {
@@ -97,6 +102,43 @@ function SessionPage() {
         exercise.templateItemId === templateItemId ? { ...exercise, note: value } : exercise,
       ),
     }))
+  }
+
+  async function handleSaveSession() {
+    setSaveError(null)
+    setSavingSession(true)
+
+    try {
+      const savedSession = await saveTrainingSession({
+        templateId: activeSession.templateId,
+        startedAt: activeSession.startedAt,
+        exercises: activeSession.exercises.map((exercise, index) => {
+          const useIndividualSets = expandedExerciseIds.includes(exercise.templateItemId)
+          const firstSet = exercise.sets[0]
+
+          return {
+            exerciseId: exercise.exerciseId,
+            orderIndex: index + 1,
+            note: exercise.note || null,
+            sets: exercise.sets.map((set) => {
+              const sourceSet = useIndividualSets ? set : firstSet
+
+              return {
+                setNumber: set.setNumber,
+                weight: sourceSet.weight === '' ? null : Number(sourceSet.weight.replace(',', '.')),
+                reps: Number(sourceSet.reps),
+              }
+            }),
+          }
+        }),
+      })
+
+      setSavedSessionId(savedSession.id)
+    } catch (error) {
+      setSaveError(error.message)
+    } finally {
+      setSavingSession(false)
+    }
   }
 
   return (
@@ -300,6 +342,21 @@ function SessionPage() {
                     )
                   })}
                 </div>
+
+                {saveError && <p className="text-danger mt-3 mb-0">{saveError}</p>}
+
+                {savedSessionId && (
+                  <p className="text-success mt-3 mb-0">Session gemt.</p>
+                )}
+
+                <button
+                  className="btn btn-dark mt-3"
+                  disabled={savingSession || Boolean(savedSessionId)}
+                  onClick={handleSaveSession}
+                  type="button"
+                >
+                  {savingSession ? 'Gemmer...' : 'Afslut og gem session'}
+                </button>
               </>
             )}
           </div>
