@@ -33,8 +33,8 @@ public class TrainingSessionExercise {
 	@JoinColumn(name = "session_id", nullable = false)
 	private TrainingSession session;
 
-	@ManyToOne(fetch = FetchType.LAZY, optional = false)
-	@JoinColumn(name = "exercise_id", nullable = false)
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "exercise_id")
 	private Exercise exercise;
 
 	@Column(nullable = false)

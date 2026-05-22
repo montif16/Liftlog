@@ -109,6 +109,10 @@ export async function deleteExercise(id) {
     method: 'DELETE',
   })
 
+  if (response.status === 404) {
+    return
+  }
+
   if (!response.ok) {
     throw new Error(`Delete exercise request failed: ${response.status}`)
   }

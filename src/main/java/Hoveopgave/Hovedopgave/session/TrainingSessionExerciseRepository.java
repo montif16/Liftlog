@@ -6,10 +6,10 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
-public interface TrainingSessionRepository extends JpaRepository<TrainingSession, Long> {
+public interface TrainingSessionExerciseRepository extends JpaRepository<TrainingSessionExercise, Long> {
 
 	@Modifying
 	@Transactional
-	@Query("update TrainingSession session set session.template = null where session.template.id = :templateId")
-	void clearTemplateReferences(@Param("templateId") Long templateId);
+	@Query("update TrainingSessionExercise exercise set exercise.exercise = null where exercise.exercise.id = :exerciseId")
+	void clearExerciseReferences(@Param("exerciseId") Long exerciseId);
 }

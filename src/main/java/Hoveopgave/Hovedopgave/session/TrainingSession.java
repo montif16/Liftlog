@@ -32,8 +32,8 @@ public class TrainingSession {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	@ManyToOne(fetch = FetchType.LAZY, optional = false)
-	@JoinColumn(name = "template_id", nullable = false)
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "template_id")
 	private WorkoutTemplate template;
 
 	@Column(nullable = false, length = 120)
