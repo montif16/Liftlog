@@ -91,3 +91,36 @@ body {
 .session-timer-input {
   width: 4.5rem;
 }
+
+.progress-chart {
+  background-color: #fff;
+}
+
+.progress-chart-svg {
+  width: 100%;
+  height: auto;
+}
+
+.progress-chart-grid {
+  stroke: #dee2e6;
+  stroke-width: 1;
+}
+
+.progress-chart-label {
+  fill: #6c757d;
+  font-size: 12px;
+}
+
+.progress-chart-line {
+  fill: none;
+  stroke: #0d6efd;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3;
+}
+
+.progress-chart-point {
+  fill: #fff;
+  stroke: #0d6efd;
+  stroke-width: 3;
+}
