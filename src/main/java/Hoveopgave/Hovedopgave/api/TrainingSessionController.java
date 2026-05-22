@@ -12,6 +12,10 @@ import java.util.Map;
 import java.util.Set;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -96,6 +100,24 @@ public class TrainingSessionController {
 		return toResponse(sessionRepository.save(session));
 	}
 
+	@GetMapping
+	@Transactional(readOnly = true)
+	public List<TrainingSessionResponse> findAll() {
+		return sessionRepository.findAllByOrderByStartedAtDesc().stream()
+				.map(TrainingSessionController::toResponse)
+				.toList();
+	}
+
+	@DeleteMapping("/{id}")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	@Transactional
+	public void delete(@PathVariable Long id) {
+		TrainingSession session = sessionRepository.findById(id)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found: " + id));
+
+		sessionRepository.delete(session);
+	}
+
 	private Map<Long, Exercise> loadExercises(List<TrainingSessionExerciseRequest> exerciseRequests) {
 		Set<Long> exerciseIds = new LinkedHashSet<>();
 		for (TrainingSessionExerciseRequest exerciseRequest : exerciseRequests) {
@@ -142,13 +164,15 @@ public class TrainingSessionController {
 									sessionSet.getSetNumber(), sessionSet.getWeight(), sessionSet.getReps()))
 							.toList();
 
+					Long exerciseId = sessionExercise.getExercise() == null ? null : sessionExercise.getExercise().getId();
 					return new TrainingSessionExerciseResponse(sessionExercise.getId(), sessionExercise.getOrderIndex(),
-							sessionExercise.getExercise().getId(), sessionExercise.getExerciseName(),
+							exerciseId, sessionExercise.getExerciseName(),
 							sessionExercise.getMuscleGroup(), sessionExercise.getNote(), sets);
 				})
 				.toList();
 
-		return new TrainingSessionResponse(session.getId(), session.getTemplate().getId(), session.getTemplateName(),
+		Long templateId = session.getTemplate() == null ? null : session.getTemplate().getId();
+		return new TrainingSessionResponse(session.getId(), templateId, session.getTemplateName(),
 				session.getStartedAt().toString(), session.getEndedAt().toString(), session.getDurationSeconds(),
 				exercises);
 	}
