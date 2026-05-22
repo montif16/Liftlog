@@ -17,18 +17,26 @@ import org.springframework.web.server.ResponseStatusException;
 
 import Hoveopgave.Hovedopgave.exercise.Exercise;
 import Hoveopgave.Hovedopgave.exercise.ExerciseRepository;
+import Hoveopgave.Hovedopgave.session.TrainingSessionExerciseRepository;
+import Hoveopgave.Hovedopgave.template.WorkoutTemplateItemRepository;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import jakarta.transaction.Transactional;
 
 @RestController
 @RequestMapping("/api/exercises")
 public class ExerciseController {
 
 	private final ExerciseRepository exerciseRepository;
+	private final WorkoutTemplateItemRepository templateItemRepository;
+	private final TrainingSessionExerciseRepository sessionExerciseRepository;
 
-	public ExerciseController(ExerciseRepository exerciseRepository) {
+	public ExerciseController(ExerciseRepository exerciseRepository, WorkoutTemplateItemRepository templateItemRepository,
+			TrainingSessionExerciseRepository sessionExerciseRepository) {
 		this.exerciseRepository = exerciseRepository;
+		this.templateItemRepository = templateItemRepository;
+		this.sessionExerciseRepository = sessionExerciseRepository;
 	}
 
 	@GetMapping
@@ -61,8 +69,11 @@ public class ExerciseController {
 
 	@DeleteMapping("/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
+	@Transactional
 	public void delete(@PathVariable Long id) {
 		Exercise exercise = getExerciseOrThrow(id);
+		templateItemRepository.deleteByExerciseId(id);
+		sessionExerciseRepository.clearExerciseReferences(id);
 		exerciseRepository.delete(exercise);
 	}
 

@@ -56,6 +56,22 @@ export async function deleteWorkoutTemplate(id) {
   }
 }
 
+export async function saveTrainingSession(session) {
+  const response = await fetch(`${API_BASE_URL}/api/sessions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(session),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Save training session request failed: ${response.status}`)
+  }
+
+  return response.json()
+}
+
 export async function createExercise(exercise) {
   const response = await fetch(`${API_BASE_URL}/api/exercises`, {
     method: 'POST',
@@ -92,6 +108,10 @@ export async function deleteExercise(id) {
   const response = await fetch(`${API_BASE_URL}/api/exercises/${id}`, {
     method: 'DELETE',
   })
+
+  if (response.status === 404) {
+    return
+  }
 
   if (!response.ok) {
     throw new Error(`Delete exercise request failed: ${response.status}`)

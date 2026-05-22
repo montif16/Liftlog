@@ -22,6 +22,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import Hoveopgave.Hovedopgave.exercise.Exercise;
 import Hoveopgave.Hovedopgave.exercise.ExerciseRepository;
+import Hoveopgave.Hovedopgave.session.TrainingSessionRepository;
 import Hoveopgave.Hovedopgave.template.WorkoutTemplate;
 import Hoveopgave.Hovedopgave.template.WorkoutTemplateItem;
 import Hoveopgave.Hovedopgave.template.WorkoutTemplateRepository;
@@ -37,10 +38,13 @@ public class WorkoutTemplateController {
 
 	private final WorkoutTemplateRepository templateRepository;
 	private final ExerciseRepository exerciseRepository;
+	private final TrainingSessionRepository sessionRepository;
 
-	public WorkoutTemplateController(WorkoutTemplateRepository templateRepository, ExerciseRepository exerciseRepository) {
+	public WorkoutTemplateController(WorkoutTemplateRepository templateRepository, ExerciseRepository exerciseRepository,
+			TrainingSessionRepository sessionRepository) {
 		this.templateRepository = templateRepository;
 		this.exerciseRepository = exerciseRepository;
+		this.sessionRepository = sessionRepository;
 	}
 
 	@GetMapping
@@ -72,6 +76,7 @@ public class WorkoutTemplateController {
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public void delete(@PathVariable Long id) {
 		WorkoutTemplate template = getTemplateOrThrow(id);
+		sessionRepository.clearTemplateReferences(id);
 		templateRepository.delete(template);
 	}
 
