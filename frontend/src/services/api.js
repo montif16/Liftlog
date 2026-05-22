@@ -96,6 +96,18 @@ export async function deleteTrainingSession(id) {
   }
 }
 
+export async function getExerciseProgression(exerciseId, signal) {
+  const response = await fetch(`${API_BASE_URL}/api/progression/exercises/${exerciseId}`, {
+    signal,
+  })
+
+  if (!response.ok) {
+    throw new Error(`Exercise progression request failed: ${response.status}`)
+  }
+
+  return response.json()
+}
+
 export async function createExercise(exercise) {
   const response = await fetch(`${API_BASE_URL}/api/exercises`, {
     method: 'POST',
