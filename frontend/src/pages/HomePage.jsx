@@ -27,18 +27,6 @@ function HomePage() {
   }, [])
 
   return (
-    <section className="row g-3">
-      <div className="col-12">
-        <div className="card shadow-sm">
-          <div className="card-body">
-            <h2 className="h4 mb-2">Interactive Workout Tracker</h2>
-            <p className="text-secondary mb-0">
-              Næste milestone er templates, aktiv session, historik og progression.
-            </p>
-          </div>
-        </div>
-      </div>
-
       <div className="col-12 col-lg-6">
         <div className="card shadow-sm h-100">
           <div className="card-body">
@@ -63,22 +51,6 @@ function HomePage() {
           </div>
         </div>
       </div>
-
-      <div className="col-12 col-lg-6">
-        <div className="card shadow-sm h-100">
-          <div className="card-body">
-            <h3 className="h6 text-uppercase text-secondary mb-3">Scope</h3>
-            <ul className="mb-0">
-              <li>Workout templates</li>
-              <li>Aktiv træningssession</li>
-              <li>Set/reps/vægt logning</li>
-              <li>Rest timer</li>
-              <li>Historik og progression</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </section>
   )
 }
 

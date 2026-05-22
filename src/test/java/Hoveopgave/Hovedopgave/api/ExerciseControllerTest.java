@@ -26,21 +26,14 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 import Hoveopgave.Hovedopgave.exercise.Exercise;
-import Hoveopgave.Hovedopgave.exercise.ExerciseRepository;
-import Hoveopgave.Hovedopgave.session.TrainingSessionExerciseRepository;
-import Hoveopgave.Hovedopgave.template.WorkoutTemplateItemRepository;
+import Hoveopgave.Hovedopgave.exercise.ExerciseService;
+import Hoveopgave.Hovedopgave.exercise.ExerciseService.ExerciseCommand;
 
 @ExtendWith(MockitoExtension.class)
 class ExerciseControllerTest {
 
 	@Mock
-	private ExerciseRepository exerciseRepository;
-
-	@Mock
-	private WorkoutTemplateItemRepository templateItemRepository;
-
-	@Mock
-	private TrainingSessionExerciseRepository sessionExerciseRepository;
+	private ExerciseService exerciseService;
 
 	private MockMvc mockMvc;
 
@@ -49,8 +42,7 @@ class ExerciseControllerTest {
 		LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
 		validator.afterPropertiesSet();
 
-		ExerciseController controller =
-				new ExerciseController(exerciseRepository, templateItemRepository, sessionExerciseRepository);
+		ExerciseController controller = new ExerciseController(exerciseService);
 		mockMvc = MockMvcBuilders.standaloneSetup(controller)
 				.setValidator(validator)
 				.build();
@@ -60,7 +52,7 @@ class ExerciseControllerTest {
 	void findAllReturnsExercisesSortedByName() throws Exception {
 		Exercise squat = exercise(1L, "Squat", "Legs");
 		Exercise benchPress = exercise(2L, "Bench press", "Chest");
-		when(exerciseRepository.findAll()).thenReturn(List.of(squat, benchPress));
+		when(exerciseService.findAll()).thenReturn(List.of(benchPress, squat));
 
 		mockMvc.perform(get("/api/exercises"))
 				.andExpect(status().isOk())
@@ -71,13 +63,8 @@ class ExerciseControllerTest {
 
 	@Test
 	void createStoresExerciseAndReturnsCreatedResponse() throws Exception {
-		when(exerciseRepository.save(any(Exercise.class))).thenAnswer(invocation -> {
-			Exercise exercise = invocation.getArgument(0);
-			exercise.setId(10L);
-			exercise.setCreatedAt(Instant.parse("2026-05-22T09:00:00Z"));
-			exercise.setUpdatedAt(Instant.parse("2026-05-22T09:00:00Z"));
-			return exercise;
-		});
+		when(exerciseService.create(any(ExerciseCommand.class)))
+				.thenReturn(exercise(10L, "Bench press", "Chest", "Barbell movement"));
 
 		mockMvc.perform(post("/api/exercises")
 						.contentType(MediaType.APPLICATION_JSON)
@@ -94,11 +81,11 @@ class ExerciseControllerTest {
 				.andExpect(jsonPath("$.muscleGroup").value("Chest"))
 				.andExpect(jsonPath("$.notes").value("Barbell movement"));
 
-		ArgumentCaptor<Exercise> exerciseCaptor = ArgumentCaptor.forClass(Exercise.class);
-		verify(exerciseRepository).save(exerciseCaptor.capture());
-		Exercise savedExercise = exerciseCaptor.getValue();
-		org.assertj.core.api.Assertions.assertThat(savedExercise.getName()).isEqualTo("Bench press");
-		org.assertj.core.api.Assertions.assertThat(savedExercise.getMuscleGroup()).isEqualTo("Chest");
+		ArgumentCaptor<ExerciseCommand> commandCaptor = ArgumentCaptor.forClass(ExerciseCommand.class);
+		verify(exerciseService).create(commandCaptor.capture());
+		ExerciseCommand command = commandCaptor.getValue();
+		org.assertj.core.api.Assertions.assertThat(command.name()).isEqualTo(" Bench press ");
+		org.assertj.core.api.Assertions.assertThat(command.muscleGroup()).isEqualTo(" Chest ");
 	}
 
 	@Test
@@ -114,23 +101,27 @@ class ExerciseControllerTest {
 								"""))
 				.andExpect(status().isBadRequest());
 
-		verify(exerciseRepository, never()).save(any(Exercise.class));
+		verify(exerciseService, never()).create(any(ExerciseCommand.class));
 	}
 
 	@Test
 	void findByIdReturnsNotFoundForUnknownExercise() throws Exception {
-		when(exerciseRepository.findById(404L)).thenReturn(Optional.empty());
+		when(exerciseService.findById(404L)).thenReturn(Optional.empty());
 
 		mockMvc.perform(get("/api/exercises/404"))
 				.andExpect(status().isNotFound());
 	}
 
 	private static Exercise exercise(Long id, String name, String muscleGroup) {
+		return exercise(id, name, muscleGroup, null);
+	}
+
+	private static Exercise exercise(Long id, String name, String muscleGroup, String notes) {
 		Exercise exercise = new Exercise();
 		exercise.setId(id);
 		exercise.setName(name);
 		exercise.setMuscleGroup(muscleGroup);
-		exercise.setNotes(null);
+		exercise.setNotes(notes);
 		exercise.setCreatedAt(Instant.parse("2026-05-22T09:00:00Z"));
 		exercise.setUpdatedAt(Instant.parse("2026-05-22T09:00:00Z"));
 		return exercise;

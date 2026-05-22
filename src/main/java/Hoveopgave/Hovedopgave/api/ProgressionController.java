@@ -1,82 +1,58 @@
 package Hoveopgave.Hovedopgave.api;
 
 import java.math.BigDecimal;
-import java.util.Comparator;
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-import Hoveopgave.Hovedopgave.exercise.Exercise;
-import Hoveopgave.Hovedopgave.exercise.ExerciseRepository;
-import Hoveopgave.Hovedopgave.session.TrainingSessionExercise;
-import Hoveopgave.Hovedopgave.session.TrainingSessionExerciseRepository;
-import Hoveopgave.Hovedopgave.session.TrainingSessionSet;
+import Hoveopgave.Hovedopgave.progression.ProgressionService;
+import Hoveopgave.Hovedopgave.progression.ProgressionService.ExerciseProgression;
+import Hoveopgave.Hovedopgave.progression.ProgressionService.ProgressionEntry;
+import Hoveopgave.Hovedopgave.progression.ProgressionService.ProgressionSet;
 
 @RestController
 @RequestMapping("/api/progression")
 public class ProgressionController {
 
-	private final ExerciseRepository exerciseRepository;
-	private final TrainingSessionExerciseRepository sessionExerciseRepository;
+	private final ProgressionService progressionService;
 
-	public ProgressionController(ExerciseRepository exerciseRepository,
-			TrainingSessionExerciseRepository sessionExerciseRepository) {
-		this.exerciseRepository = exerciseRepository;
-		this.sessionExerciseRepository = sessionExerciseRepository;
+	public ProgressionController(ProgressionService progressionService) {
+		this.progressionService = progressionService;
 	}
 
 	@GetMapping("/exercises/{exerciseId}")
-	@Transactional(readOnly = true)
 	public ExerciseProgressionResponse findExerciseProgression(@PathVariable Long exerciseId) {
-		Exercise exercise = exerciseRepository.findById(exerciseId)
+		return progressionService.findExerciseProgression(exerciseId)
+				.map(ProgressionController::toResponse)
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
 						"Exercise not found: " + exerciseId));
+	}
 
-		List<ProgressionEntryResponse> entries = sessionExerciseRepository.findProgressionByExerciseId(exerciseId)
-				.stream()
+	private static ExerciseProgressionResponse toResponse(ExerciseProgression progression) {
+		List<ProgressionEntryResponse> entries = progression.entries().stream()
 				.map(ProgressionController::toEntryResponse)
 				.toList();
 
-		return new ExerciseProgressionResponse(exercise.getId(), exercise.getName(), exercise.getMuscleGroup(),
-				entries);
+		return new ExerciseProgressionResponse(progression.exerciseId(), progression.exerciseName(),
+				progression.muscleGroup(), entries);
 	}
 
-	private static ProgressionEntryResponse toEntryResponse(TrainingSessionExercise sessionExercise) {
-		List<ProgressionSetResponse> sets = sessionExercise.getSets().stream()
-				.sorted(Comparator.comparing(TrainingSessionSet::getSetNumber))
-				.map(sessionSet -> new ProgressionSetResponse(sessionSet.getSetNumber(), sessionSet.getWeight(),
-						sessionSet.getReps()))
+	private static ProgressionEntryResponse toEntryResponse(ProgressionEntry entry) {
+		List<ProgressionSetResponse> sets = entry.sets().stream()
+				.map(ProgressionController::toSetResponse)
 				.toList();
 
-		BigDecimal totalVolume = calculateTotalVolume(sessionExercise.getSets());
-		TrainingSessionSet bestSet = findBestSet(sessionExercise.getSets());
-		BigDecimal bestWeight = bestSet == null ? null : bestSet.getWeight();
-		Integer bestReps = bestSet == null ? null : bestSet.getReps();
-
-		return new ProgressionEntryResponse(sessionExercise.getSession().getId(),
-				sessionExercise.getSession().getStartedAt().toString(), sessionExercise.getSession().getTemplateName(),
-				totalVolume, bestWeight, bestReps, sets);
+		return new ProgressionEntryResponse(entry.sessionId(), entry.startedAt().toString(), entry.templateName(),
+				entry.totalVolume(), entry.bestWeight(), entry.bestReps(), sets);
 	}
 
-	private static BigDecimal calculateTotalVolume(List<TrainingSessionSet> sets) {
-		return sets.stream()
-				.filter(sessionSet -> sessionSet.getWeight() != null)
-				.map(sessionSet -> sessionSet.getWeight().multiply(BigDecimal.valueOf(sessionSet.getReps())))
-				.reduce(BigDecimal.ZERO, BigDecimal::add);
-	}
-
-	private static TrainingSessionSet findBestSet(List<TrainingSessionSet> sets) {
-		return sets.stream()
-				.filter(sessionSet -> sessionSet.getWeight() != null)
-				.max(Comparator.comparing(TrainingSessionSet::getWeight)
-						.thenComparing(TrainingSessionSet::getReps))
-				.orElse(null);
+	private static ProgressionSetResponse toSetResponse(ProgressionSet set) {
+		return new ProgressionSetResponse(set.setNumber(), set.weight(), set.reps());
 	}
 
 	public record ExerciseProgressionResponse(Long exerciseId, String exerciseName, String muscleGroup,
