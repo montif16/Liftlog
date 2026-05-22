@@ -1,18 +1,11 @@
 package Hoveopgave.Hovedopgave.api;
 
 import java.math.BigDecimal;
-import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 import org.springframework.http.HttpStatus;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,14 +16,13 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-import Hoveopgave.Hovedopgave.exercise.Exercise;
-import Hoveopgave.Hovedopgave.exercise.ExerciseRepository;
 import Hoveopgave.Hovedopgave.session.TrainingSession;
 import Hoveopgave.Hovedopgave.session.TrainingSessionExercise;
-import Hoveopgave.Hovedopgave.session.TrainingSessionRepository;
+import Hoveopgave.Hovedopgave.session.TrainingSessionService;
+import Hoveopgave.Hovedopgave.session.TrainingSessionService.TrainingSessionCommand;
+import Hoveopgave.Hovedopgave.session.TrainingSessionService.TrainingSessionExerciseCommand;
+import Hoveopgave.Hovedopgave.session.TrainingSessionService.TrainingSessionSetCommand;
 import Hoveopgave.Hovedopgave.session.TrainingSessionSet;
-import Hoveopgave.Hovedopgave.template.WorkoutTemplate;
-import Hoveopgave.Hovedopgave.template.WorkoutTemplateRepository;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -41,117 +33,46 @@ import jakarta.validation.constraints.Size;
 @RequestMapping("/api/sessions")
 public class TrainingSessionController {
 
-	private final TrainingSessionRepository sessionRepository;
-	private final WorkoutTemplateRepository templateRepository;
-	private final ExerciseRepository exerciseRepository;
+	private final TrainingSessionService sessionService;
 
-	public TrainingSessionController(TrainingSessionRepository sessionRepository,
-			WorkoutTemplateRepository templateRepository, ExerciseRepository exerciseRepository) {
-		this.sessionRepository = sessionRepository;
-		this.templateRepository = templateRepository;
-		this.exerciseRepository = exerciseRepository;
+	public TrainingSessionController(TrainingSessionService sessionService) {
+		this.sessionService = sessionService;
 	}
 
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	public TrainingSessionResponse create(@Valid @RequestBody TrainingSessionCreateRequest request) {
-		WorkoutTemplate template = templateRepository.findById(request.templateId())
-				.orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
-						"Template not found: " + request.templateId()));
-
-		Instant endedAt = Instant.now();
-		TrainingSession session = new TrainingSession();
-		session.setTemplate(template);
-		session.setTemplateName(template.getName());
-		session.setStartedAt(request.startedAt());
-		session.setEndedAt(endedAt);
-		session.setDurationSeconds(Math.max(0, Duration.between(request.startedAt(), endedAt).getSeconds()));
-
-		List<TrainingSessionExerciseRequest> exerciseRequests =
-				request.exercises() == null ? List.of() : request.exercises();
-		Map<Long, Exercise> exercises = loadExercises(exerciseRequests);
-
-		exerciseRequests.stream().sorted(Comparator.comparing(TrainingSessionExerciseRequest::orderIndex))
-				.forEach(exerciseRequest -> {
-					Exercise exercise = exercises.get(exerciseRequest.exerciseId());
-					TrainingSessionExercise sessionExercise = new TrainingSessionExercise();
-					sessionExercise.setSession(session);
-					sessionExercise.setExercise(exercise);
-					sessionExercise.setOrderIndex(exerciseRequest.orderIndex());
-					sessionExercise.setExerciseName(exercise.getName());
-					sessionExercise.setMuscleGroup(exercise.getMuscleGroup());
-					sessionExercise.setNote(normalizeNullable(exerciseRequest.note()));
-
-					List<TrainingSessionSetRequest> setRequests =
-							exerciseRequest.sets() == null ? List.of() : exerciseRequest.sets();
-					setRequests.stream().sorted(Comparator.comparing(TrainingSessionSetRequest::setNumber))
-							.forEach(setRequest -> {
-								TrainingSessionSet sessionSet = new TrainingSessionSet();
-								sessionSet.setSessionExercise(sessionExercise);
-								sessionSet.setSetNumber(setRequest.setNumber());
-								sessionSet.setWeight(setRequest.weight());
-								sessionSet.setReps(setRequest.reps());
-								sessionExercise.getSets().add(sessionSet);
-							});
-
-					session.getExercises().add(sessionExercise);
-				});
-
-		return toResponse(sessionRepository.save(session));
+		return toResponse(sessionService.create(toCommand(request)));
 	}
 
 	@GetMapping
-	@Transactional(readOnly = true)
 	public List<TrainingSessionResponse> findAll() {
-		return sessionRepository.findAllByOrderByStartedAtDesc().stream()
+		return sessionService.findAll().stream()
 				.map(TrainingSessionController::toResponse)
 				.toList();
 	}
 
 	@DeleteMapping("/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	@Transactional
 	public void delete(@PathVariable Long id) {
-		TrainingSession session = sessionRepository.findById(id)
-				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found: " + id));
-
-		sessionRepository.delete(session);
+		if (!sessionService.delete(id)) {
+			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found: " + id);
+		}
 	}
 
-	private Map<Long, Exercise> loadExercises(List<TrainingSessionExerciseRequest> exerciseRequests) {
-		Set<Long> exerciseIds = new LinkedHashSet<>();
-		for (TrainingSessionExerciseRequest exerciseRequest : exerciseRequests) {
-			exerciseIds.add(exerciseRequest.exerciseId());
-		}
-
-		if (exerciseIds.isEmpty()) {
-			return Map.of();
-		}
-
-		Map<Long, Exercise> byId = new LinkedHashMap<>();
-		for (Exercise exercise : exerciseRepository.findAllById(exerciseIds)) {
-			byId.put(exercise.getId(), exercise);
-		}
-
-		if (byId.size() != exerciseIds.size()) {
-			List<Long> missing = new ArrayList<>();
-			for (Long exerciseId : exerciseIds) {
-				if (!byId.containsKey(exerciseId)) {
-					missing.add(exerciseId);
-				}
-			}
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown exercise IDs: " + missing);
-		}
-
-		return byId;
+	private static TrainingSessionCommand toCommand(TrainingSessionCreateRequest request) {
+		List<TrainingSessionExerciseCommand> exercises = request.exercises() == null ? List.of() : request.exercises()
+				.stream()
+				.map(exercise -> new TrainingSessionExerciseCommand(exercise.exerciseId(), exercise.orderIndex(),
+						exercise.note(), toSetCommands(exercise.sets())))
+				.toList();
+		return new TrainingSessionCommand(request.templateId(), request.startedAt(), exercises);
 	}
 
-	private static String normalizeNullable(String value) {
-		if (value == null) {
-			return null;
-		}
-		String trimmed = value.trim();
-		return trimmed.isEmpty() ? null : trimmed;
+	private static List<TrainingSessionSetCommand> toSetCommands(List<TrainingSessionSetRequest> sets) {
+		return sets == null ? List.of() : sets.stream()
+				.map(set -> new TrainingSessionSetCommand(set.setNumber(), set.weight(), set.reps()))
+				.toList();
 	}
 
 	private static TrainingSessionResponse toResponse(TrainingSession session) {

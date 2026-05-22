@@ -1,12 +1,7 @@
 package Hoveopgave.Hovedopgave.api;
 
-import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -20,12 +15,11 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-import Hoveopgave.Hovedopgave.exercise.Exercise;
-import Hoveopgave.Hovedopgave.exercise.ExerciseRepository;
-import Hoveopgave.Hovedopgave.session.TrainingSessionRepository;
 import Hoveopgave.Hovedopgave.template.WorkoutTemplate;
 import Hoveopgave.Hovedopgave.template.WorkoutTemplateItem;
-import Hoveopgave.Hovedopgave.template.WorkoutTemplateRepository;
+import Hoveopgave.Hovedopgave.template.WorkoutTemplateService;
+import Hoveopgave.Hovedopgave.template.WorkoutTemplateService.WorkoutTemplateCommand;
+import Hoveopgave.Hovedopgave.template.WorkoutTemplateService.WorkoutTemplateItemCommand;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -36,107 +30,55 @@ import jakarta.validation.constraints.Size;
 @RequestMapping("/api/templates")
 public class WorkoutTemplateController {
 
-	private final WorkoutTemplateRepository templateRepository;
-	private final ExerciseRepository exerciseRepository;
-	private final TrainingSessionRepository sessionRepository;
+	private final WorkoutTemplateService templateService;
 
-	public WorkoutTemplateController(WorkoutTemplateRepository templateRepository, ExerciseRepository exerciseRepository,
-			TrainingSessionRepository sessionRepository) {
-		this.templateRepository = templateRepository;
-		this.exerciseRepository = exerciseRepository;
-		this.sessionRepository = sessionRepository;
+	public WorkoutTemplateController(WorkoutTemplateService templateService) {
+		this.templateService = templateService;
 	}
 
 	@GetMapping
 	public List<WorkoutTemplateResponse> findAll() {
-		return templateRepository.findAllByOrderByNameAsc().stream().map(WorkoutTemplateController::toResponse).toList();
+		return templateService.findAll().stream().map(WorkoutTemplateController::toResponse).toList();
 	}
 
 	@GetMapping("/{id}")
 	public WorkoutTemplateResponse findById(@PathVariable Long id) {
-		return toResponse(getTemplateOrThrow(id));
+		return templateService.findById(id)
+				.map(WorkoutTemplateController::toResponse)
+				.orElseThrow(() -> notFound(id));
 	}
 
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	public WorkoutTemplateResponse create(@Valid @RequestBody WorkoutTemplateUpsertRequest request) {
-		WorkoutTemplate template = new WorkoutTemplate();
-		applyRequest(template, request);
-		return toResponse(templateRepository.save(template));
+		return toResponse(templateService.create(toCommand(request)));
 	}
 
 	@PutMapping("/{id}")
 	public WorkoutTemplateResponse update(@PathVariable Long id, @Valid @RequestBody WorkoutTemplateUpsertRequest request) {
-		WorkoutTemplate template = getTemplateOrThrow(id);
-		applyRequest(template, request);
-		return toResponse(templateRepository.save(template));
+		return templateService.update(id, toCommand(request))
+				.map(WorkoutTemplateController::toResponse)
+				.orElseThrow(() -> notFound(id));
 	}
 
 	@DeleteMapping("/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public void delete(@PathVariable Long id) {
-		WorkoutTemplate template = getTemplateOrThrow(id);
-		sessionRepository.clearTemplateReferences(id);
-		templateRepository.delete(template);
+		if (!templateService.delete(id)) {
+			throw notFound(id);
+		}
 	}
 
-	private WorkoutTemplate getTemplateOrThrow(Long id) {
-		return templateRepository.findById(id)
-				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Template not found: " + id));
+	private static ResponseStatusException notFound(Long id) {
+		return new ResponseStatusException(HttpStatus.NOT_FOUND, "Template not found: " + id);
 	}
 
-	private void applyRequest(WorkoutTemplate template, WorkoutTemplateUpsertRequest request) {
-		template.setName(request.name().trim());
-		template.setDescription(normalizeNullable(request.description()));
-		template.getItems().clear();
-
-		List<WorkoutTemplateItemRequest> itemRequests = request.items() == null ? List.of() : request.items();
-		Map<Long, Exercise> exercises = loadExercises(itemRequests);
-		itemRequests.stream().sorted(Comparator.comparing(WorkoutTemplateItemRequest::orderIndex)).forEach(itemRequest -> {
-			WorkoutTemplateItem item = new WorkoutTemplateItem();
-			item.setTemplate(template);
-			item.setExercise(exercises.get(itemRequest.exerciseId()));
-			item.setOrderIndex(itemRequest.orderIndex());
-			item.setTargetSets(itemRequest.targetSets());
-			item.setTargetReps(itemRequest.targetReps());
-			template.getItems().add(item);
-		});
-	}
-
-	private Map<Long, Exercise> loadExercises(List<WorkoutTemplateItemRequest> itemRequests) {
-		Set<Long> exerciseIds = new LinkedHashSet<>();
-		for (WorkoutTemplateItemRequest itemRequest : itemRequests) {
-			exerciseIds.add(itemRequest.exerciseId());
-		}
-
-		if (exerciseIds.isEmpty()) {
-			return Map.of();
-		}
-
-		Map<Long, Exercise> byId = new LinkedHashMap<>();
-		for (Exercise exercise : exerciseRepository.findAllById(exerciseIds)) {
-			byId.put(exercise.getId(), exercise);
-		}
-
-		if (byId.size() != exerciseIds.size()) {
-			List<Long> missing = new ArrayList<>();
-			for (Long exerciseId : exerciseIds) {
-				if (!byId.containsKey(exerciseId)) {
-					missing.add(exerciseId);
-				}
-			}
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown exercise IDs: " + missing);
-		}
-
-		return byId;
-	}
-
-	private static String normalizeNullable(String value) {
-		if (value == null) {
-			return null;
-		}
-		String trimmed = value.trim();
-		return trimmed.isEmpty() ? null : trimmed;
+	private static WorkoutTemplateCommand toCommand(WorkoutTemplateUpsertRequest request) {
+		List<WorkoutTemplateItemCommand> items = request.items() == null ? List.of() : request.items().stream()
+				.map(item -> new WorkoutTemplateItemCommand(item.exerciseId(), item.orderIndex(), item.targetSets(),
+						item.targetReps()))
+				.toList();
+		return new WorkoutTemplateCommand(request.name(), request.description(), items);
 	}
 
 	private static WorkoutTemplateResponse toResponse(WorkoutTemplate template) {

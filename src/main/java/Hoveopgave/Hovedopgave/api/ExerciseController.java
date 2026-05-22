@@ -1,6 +1,5 @@
 package Hoveopgave.Hovedopgave.api;
 
-import java.util.Comparator;
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
@@ -16,84 +15,63 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import Hoveopgave.Hovedopgave.exercise.Exercise;
-import Hoveopgave.Hovedopgave.exercise.ExerciseRepository;
-import Hoveopgave.Hovedopgave.session.TrainingSessionExerciseRepository;
-import Hoveopgave.Hovedopgave.template.WorkoutTemplateItemRepository;
+import Hoveopgave.Hovedopgave.exercise.ExerciseService;
+import Hoveopgave.Hovedopgave.exercise.ExerciseService.ExerciseCommand;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import jakarta.transaction.Transactional;
 
 @RestController
 @RequestMapping("/api/exercises")
 public class ExerciseController {
 
-	private final ExerciseRepository exerciseRepository;
-	private final WorkoutTemplateItemRepository templateItemRepository;
-	private final TrainingSessionExerciseRepository sessionExerciseRepository;
+	private final ExerciseService exerciseService;
 
-	public ExerciseController(ExerciseRepository exerciseRepository, WorkoutTemplateItemRepository templateItemRepository,
-			TrainingSessionExerciseRepository sessionExerciseRepository) {
-		this.exerciseRepository = exerciseRepository;
-		this.templateItemRepository = templateItemRepository;
-		this.sessionExerciseRepository = sessionExerciseRepository;
+	public ExerciseController(ExerciseService exerciseService) {
+		this.exerciseService = exerciseService;
 	}
 
 	@GetMapping
 	public List<ExerciseResponse> findAll() {
-		return exerciseRepository.findAll().stream()
-				.sorted(Comparator.comparing(Exercise::getName, String.CASE_INSENSITIVE_ORDER))
+		return exerciseService.findAll().stream()
 				.map(ExerciseController::toResponse)
 				.toList();
 	}
 
 	@GetMapping("/{id}")
 	public ExerciseResponse findById(@PathVariable Long id) {
-		return toResponse(getExerciseOrThrow(id));
+		return exerciseService.findById(id)
+				.map(ExerciseController::toResponse)
+				.orElseThrow(() -> notFound(id));
 	}
 
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	public ExerciseResponse create(@Valid @RequestBody ExerciseUpsertRequest request) {
-		Exercise exercise = new Exercise();
-		applyRequest(exercise, request);
-		return toResponse(exerciseRepository.save(exercise));
+		return toResponse(exerciseService.create(toCommand(request)));
 	}
 
 	@PutMapping("/{id}")
 	public ExerciseResponse update(@PathVariable Long id, @Valid @RequestBody ExerciseUpsertRequest request) {
-		Exercise exercise = getExerciseOrThrow(id);
-		applyRequest(exercise, request);
-		return toResponse(exerciseRepository.save(exercise));
+		return exerciseService.update(id, toCommand(request))
+				.map(ExerciseController::toResponse)
+				.orElseThrow(() -> notFound(id));
 	}
 
 	@DeleteMapping("/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	@Transactional
 	public void delete(@PathVariable Long id) {
-		Exercise exercise = getExerciseOrThrow(id);
-		templateItemRepository.deleteByExerciseId(id);
-		sessionExerciseRepository.clearExerciseReferences(id);
-		exerciseRepository.delete(exercise);
-	}
-
-	private Exercise getExerciseOrThrow(Long id) {
-		return exerciseRepository.findById(id)
-				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Exercise not found: " + id));
-	}
-
-	private static void applyRequest(Exercise exercise, ExerciseUpsertRequest request) {
-		exercise.setName(request.name().trim());
-		exercise.setMuscleGroup(request.muscleGroup().trim());
-		exercise.setNotes(normalizeNullable(request.notes()));
-	}
-
-	private static String normalizeNullable(String value) {
-		if (value == null) {
-			return null;
+		if (!exerciseService.delete(id)) {
+			throw notFound(id);
 		}
-		String trimmed = value.trim();
-		return trimmed.isEmpty() ? null : trimmed;
+	}
+
+	private static ResponseStatusException notFound(Long id) {
+		return new ResponseStatusException(HttpStatus.NOT_FOUND, "Exercise not found: " + id);
+	}
+
+	private static ExerciseCommand toCommand(ExerciseUpsertRequest request) {
+		return new ExerciseCommand(request.name(), request.muscleGroup(), request.notes());
 	}
 
 	private static ExerciseResponse toResponse(Exercise exercise) {
