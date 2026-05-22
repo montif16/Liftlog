@@ -87,3 +87,7 @@ body {
   pointer-events: none;
   transform: translateY(-50%);
 }
+
+.session-timer-input {
+  width: 4.5rem;
+}

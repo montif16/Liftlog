@@ -13,6 +13,9 @@ function SessionPage() {
   const [savingSession, setSavingSession] = useState(false)
   const [saveError, setSaveError] = useState(null)
   const [savedSessionId, setSavedSessionId] = useState(null)
+  const [restDurationSeconds, setRestDurationSeconds] = useState(90)
+  const [restRemainingSeconds, setRestRemainingSeconds] = useState(90)
+  const [restTimerRunning, setRestTimerRunning] = useState(false)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -31,6 +34,25 @@ function SessionPage() {
     loadTemplates()
     return () => controller.abort()
   }, [])
+
+  useEffect(() => {
+    if (!restTimerRunning) {
+      return undefined
+    }
+
+    const timerId = window.setInterval(() => {
+      setRestRemainingSeconds((current) => {
+        if (current <= 1) {
+          setRestTimerRunning(false)
+          return 0
+        }
+
+        return current - 1
+      })
+    }, 1000)
+
+    return () => window.clearInterval(timerId)
+  }, [restTimerRunning])
 
   function handleStartSession(template) {
     const exercises = [...template.items]
@@ -60,6 +82,40 @@ function SessionPage() {
     setNoteExerciseIds([])
     setSaveError(null)
     setSavedSessionId(null)
+    handleResetRestTimer()
+  }
+
+  function formatRestTime(seconds) {
+    const minutes = Math.floor(seconds / 60)
+    const remainingSeconds = seconds % 60
+
+    return `${minutes}:${String(remainingSeconds).padStart(2, '0')}`
+  }
+
+  function handleRestDurationChange(event) {
+    const seconds = Number(event.target.value)
+    const nextDuration = Number.isNaN(seconds) ? 0 : Math.max(0, seconds)
+
+    setRestDurationSeconds(nextDuration)
+    setRestRemainingSeconds(nextDuration)
+    setRestTimerRunning(false)
+  }
+
+  function handleStartRestTimer() {
+    if (restRemainingSeconds === 0) {
+      setRestRemainingSeconds(restDurationSeconds)
+    }
+
+    setRestTimerRunning(true)
+  }
+
+  function handlePauseRestTimer() {
+    setRestTimerRunning(false)
+  }
+
+  function handleResetRestTimer() {
+    setRestTimerRunning(false)
+    setRestRemainingSeconds(restDurationSeconds)
   }
 
   function handleSetChange(templateItemId, setNumber, field, value) {
@@ -204,6 +260,50 @@ function SessionPage() {
             {activeSession && (
               <>
                 <p className="text-secondary mb-3">{activeSession.templateName}</p>
+
+                <div className="border rounded px-2 py-2 mb-3">
+                  <div className="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                    <div>
+                      <p className="text-secondary small mb-1">Pausetimer</p>
+                      <p className="h4 mb-0">{formatRestTime(restRemainingSeconds)}</p>
+                    </div>
+                    <div className="d-flex align-items-center gap-2 flex-wrap">
+                      <input
+                        className="form-control form-control-sm session-timer-input"
+                        inputMode="numeric"
+                        min={0}
+                        onChange={handleRestDurationChange}
+                        value={restDurationSeconds}
+                      />
+                      <span className="text-secondary small">sek</span>
+                      {restTimerRunning ? (
+                        <button
+                          className="btn btn-sm btn-outline-secondary"
+                          onClick={handlePauseRestTimer}
+                          type="button"
+                        >
+                          Pause
+                        </button>
+                      ) : (
+                        <button
+                          className="btn btn-sm btn-dark"
+                          disabled={restDurationSeconds === 0}
+                          onClick={handleStartRestTimer}
+                          type="button"
+                        >
+                          Start
+                        </button>
+                      )}
+                      <button
+                        className="btn btn-sm btn-outline-secondary"
+                        onClick={handleResetRestTimer}
+                        type="button"
+                      >
+                        Nulstil
+                      </button>
+                    </div>
+                  </div>
+                </div>
 
                 <div className="d-grid gap-2">
                   {activeSession.exercises.map((exercise, index) => {
