@@ -72,6 +72,30 @@ export async function saveTrainingSession(session) {
   return response.json()
 }
 
+export async function getTrainingSessions(signal) {
+  const response = await fetch(`${API_BASE_URL}/api/sessions`, { signal })
+
+  if (!response.ok) {
+    throw new Error(`Training sessions request failed: ${response.status}`)
+  }
+
+  return response.json()
+}
+
+export async function deleteTrainingSession(id) {
+  const response = await fetch(`${API_BASE_URL}/api/sessions/${id}`, {
+    method: 'DELETE',
+  })
+
+  if (response.status === 404) {
+    return
+  }
+
+  if (!response.ok) {
+    throw new Error(`Delete training session request failed: ${response.status}`)
+  }
+}
+
 export async function createExercise(exercise) {
   const response = await fetch(`${API_BASE_URL}/api/exercises`, {
     method: 'POST',
